@@ -1,17 +1,11 @@
-# Semaphore-controlled output sequencing
+# Semaphore-controlled output
 
-Coordinate three symbol workers and a newline worker to print ordered groups of plus, minus, and star characters.
+Coordinates plus, minus, star, and newline threads with semaphores. The width is hardcoded to 10. Runs indefinitely with the original sleep calls.
 
-Concepts: C++20 binary semaphores; token handoff; acknowledgment; finite termination; safe startup.
+Build with make from the repository root, then run:
 
-Build from the repository root with make, then run:
+```sh
+build/semaphore-sequencing
+```
 
-~~~sh
-build/semaphore-sequencing 2 4
-~~~
-
-Prints "++++", "----", and "****" on separate lines, repeating twice. Both cycle count and width range from 1 to 1000. Ordering follows semaphore handoffs and requires no sleeps.
-
-Changes from the coursework draft: Added finite cycles, configurable width, a startup gate for thread-creation failure, and RAII joins. Removed timing-dependent delays.
-
-Validation: make check includes behavioral checks for this exercise. Original source mapping is in docs/provenance.md.
+Source code is unchanged from the original study folder.

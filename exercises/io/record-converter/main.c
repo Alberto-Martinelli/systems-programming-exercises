@@ -1,97 +1,78 @@
-#include "records.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
-static int to_binary(const char *input_path, const char *output_path) {
-    FILE *input = fopen(input_path, "r");
-    if (input == NULL) {
-        perror(input_path);
-        return EXIT_FAILURE;
-    }
-    int output = open_distinct_output(fileno(input), output_path);
-    if (output < 0) {
-        perror(output_path);
-        fclose(input);
-        return EXIT_FAILURE;
-    }
-    int result = EXIT_SUCCESS;
-    char line[256];
-    unsigned long line_number = 0, next_id = 1;
-    while (fgets(line, sizeof line, input) != NULL) {
-        ++line_number;
-        if (strchr(line, '\n') == NULL && !feof(input)) {
-            fprintf(stderr, "Line %lu is too long\n", line_number);
-            result = EXIT_FAILURE;
-            break;
-        }
-        if (strspn(line, " \t\r\n") == strlen(line)) continue;
-        record_t record = {0};
-        if (parse_record(line, &record) < 0 || record.id != next_id) {
-            fprintf(stderr, "Invalid record on line %lu; IDs must be sequential from 1\n",
-                    line_number);
-            result = EXIT_FAILURE;
-            break;
-        }
-        if (write_record(output, &record) < 0) {
-            perror("write record");
-            result = EXIT_FAILURE;
-            break;
-        }
-        ++next_id;
-    }
-    if (ferror(input)) {
-        perror("read text");
-        result = EXIT_FAILURE;
-    }
-    if (fclose(input) != 0) result = EXIT_FAILURE;
-    if (close(output) != 0) result = EXIT_FAILURE;
-    return result;
+#define LENGTH 30
+
+typedef struct record_s {
+    int line_num;
+    long reg;
+    char surname[LENGTH];
+    char name[LENGTH];
+    int mark;
+}record_t;
+
+void text_to_binary(char* txt_file, char* binary_file);
+void binary_to_text(char* binary_file, char* txt_file2);
+
+int main(int argc, char** argv){
+    char filename1[20] = "data.txt";//argv[1];
+    char filename2[20] = "data_2.bin";//argv[2];
+    char filename3[20] = "data_3.txt";//argv[3];
+
+    text_to_binary(filename1, filename2);
+    binary_to_text(filename2, filename3);
+    return 0;
 }
 
-static int to_text(const char *input_path, const char *output_path) {
-    int input = open(input_path, O_RDONLY);
-    if (input < 0) {
-        perror(input_path);
-        return EXIT_FAILURE;
+void binary_to_text(char* binary_file, char* txt_file2){
+    int fd = open(binary_file, O_RDONLY); //opens the binary file for reading 
+    FILE *fp = fopen(txt_file2, "w"); //opens the txt file for writing
+    if(fd==-1 || fp==NULL){
+        fprintf(stderr, "Error opening file\n");
+    }  
+    
+    record_t* ptr = (record_t*)malloc(1*sizeof(record_t));
+    if (ptr==NULL){
+            fprintf(stdout, "Memory allocation error\n");
+            exit(EXIT_FAILURE);
     }
-    int output_fd = open_distinct_output(input, output_path);
-    if (output_fd < 0) {
-        perror(output_path);
-        close(input);
-        return EXIT_FAILURE;
+    
+    while(read(fd, ptr, sizeof(record_t)) != 0){
+        fprintf(fp, "%d %li %s %s %d\n", ptr->line_num, ptr->reg, ptr->surname, ptr->name, ptr->mark);
     }
-    FILE *output = fdopen(output_fd, "w");
-    if (output == NULL) {
-        perror("fdopen");
-        close(input);
-        close(output_fd);
-        return EXIT_FAILURE;
-    }
-    int status, result = EXIT_SUCCESS;
-    unsigned long next_id = 1;
-    record_t record;
-    while ((status = read_record(input, &record)) == 1) {
-        if (record.id != next_id || print_record(output, &record) < 0) {
-            fprintf(stderr, "Invalid record order or output error\n");
-            result = EXIT_FAILURE;
-            break;
-        }
-        ++next_id;
-    }
-    if (status < 0) {
-        perror("read binary record");
-        result = EXIT_FAILURE;
-    }
-    if (close(input) != 0) result = EXIT_FAILURE;
-    if (fclose(output) != 0) result = EXIT_FAILURE;
-    return result;
+
+    free(ptr);
+    fclose(fp);
+    close(fd);
 }
 
-int main(int argc, char **argv) {
-    if (argc != 4) {
-        fprintf(stderr, "Usage: %s to-binary|to-text INPUT OUTPUT\n", argv[0]);
-        return EXIT_FAILURE;
+void text_to_binary(char* txt_file, char* binary_file){
+
+    FILE *fp = fopen(txt_file, "r"); //opens the txt file for reading
+    int fd = open(binary_file, O_WRONLY); //opens the binary file for writing 
+    if(fp == NULL || fd==-1){
+        fprintf(stdout, "Error opening file\n");
+        exit(EXIT_FAILURE);
     }
-    if (strcmp(argv[1], "to-binary") == 0) return to_binary(argv[2], argv[3]);
-    if (strcmp(argv[1], "to-text") == 0) return to_text(argv[2], argv[3]);
-    fprintf(stderr, "Unknown conversion: %s\n", argv[1]);
-    return EXIT_FAILURE;
+    
+    record_t* ptr = (record_t*)malloc(1*sizeof(record_t));
+    if (ptr==NULL){
+            fprintf(stdout, "Memory allocation error\n");
+            exit(EXIT_FAILURE);
+    }
+
+    while(fscanf(fp, "%d %li %s %s %d", &(ptr->line_num), &(ptr->reg), ptr->surname, ptr->name, &(ptr->mark))!=EOF){
+        // printf("I read: %s %s\n", ptr->surname, ptr->name); for debug
+        write(fd, ptr, sizeof(record_t));
+    }
+
+
+    free(ptr);
+    close(fd);
+    fclose(fp);
 }

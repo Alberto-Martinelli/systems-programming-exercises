@@ -1,17 +1,11 @@
-# Bounded process tree
+# Process tree
 
-Create a process tree with configurable height and branching factor, printing each leaf path.
+Creates a process tree with hardcoded h = 3 and n = 2, then prints leaf process IDs. Original parent exits and process lifetime behavior are preserved.
 
-Concepts: fork return values; independent address spaces; recursive process creation; _exit; waitpid.
+Build with make from the repository root, then run:
 
-Build from the repository root with make, then run:
+```sh
+build/process-tree
+```
 
-~~~sh
-build/process-tree 2 2
-~~~
-
-Prints 0.0, 0.1, 1.0, and 1.1 in scheduling-dependent order. Height is 0..4 and branching factor is 1..4. Every parent reaps its own children before it returns.
-
-Changes from the coursework draft: Replaced fixed parameters and early parent exits with bounded CLI parameters, explicit tree structure, and cleanup at every level.
-
-Validation: make check includes behavioral checks for this exercise. Original source mapping is in docs/provenance.md.
+Source code is unchanged from the original study folder.

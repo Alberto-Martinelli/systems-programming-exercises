@@ -1,70 +1,84 @@
-#include "records.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
-static int usage(const char *program) {
-    fprintf(stderr, "Usage: %s read FILE INDEX\n"
-                    "       %s write FILE INDEX REGISTRATION SURNAME NAME MARK\n",
-                    program, program);
-    return EXIT_FAILURE;
+#define LEN 30
+
+typedef struct record_s {
+    int line_num;
+    long reg;
+    char surname[LEN];
+    char name[LEN];
+    int mark;
+}record_t;
+
+record_t* search_student(char* filename, int student_num);
+void overwrite_student(char* filename, record_t* ptr, int student_num);
+
+int main(int argc, char** argv){
+    char choice;
+    int student_num, end=0;
+    char filename[20] = "data_2.bin";
+    printf("Menu: \n");
+    printf("1. R <student number>\n");
+    printf("2. W <student number>\n");
+    printf("3. E (end program)\n");
+
+    while(end==0){
+        printf("Enter your choice:\n>");
+        scanf(" %c %d", &choice, &student_num);
+        // getchar();  // Consume any remaining newline characters in the input buffer
+        // choice = 'E';
+        // student_num = 2;
+        switch(choice){
+            case 'R':
+                printf("You selected Option 1.\n");
+                record_t* ptr = search_student(filename, student_num);
+                printf("\n%d %li %s %s %d\n", ptr->line_num, ptr->reg, ptr->surname, ptr->name, ptr->mark);
+                free(ptr);
+                break;
+            case 'W':
+                printf("You selected Option 2.\nPlease provide data fields for the student %d\n", student_num);
+                record_t* ptr2 = (record_t*)malloc(1*sizeof(record_t));
+                scanf("%d %li %s %s %d", &(ptr2->line_num), &(ptr2->reg), ptr2->name, ptr2->surname, &(ptr2->mark));
+                overwrite_student(filename, ptr2, student_num);
+                free(ptr2);
+                break;
+            case 'E':
+                end = 1;
+                break;
+        }
+    }
+    return 0;
 }
 
-int main(int argc, char **argv) {
-    if (argc < 2) return usage(argv[0]);
-    int writing = strcmp(argv[1], "write") == 0;
-    if ((!writing && strcmp(argv[1], "read") != 0) ||
-        argc != (writing ? 8 : 4)) return usage(argv[0]);
-    unsigned long index;
-    if (parse_uint(argv[3], 1, 1000000, &index) < 0) return usage(argv[0]);
+void overwrite_student(char* filename, record_t* ptr, int student_num){
+    int fd = open(filename, O_WRONLY);
+    if(fd==-1){
+        fprintf(stderr, "Error opening file\n");
+        exit(EXIT_FAILURE);
+    }
+    lseek(fd, sizeof(record_t)*(student_num-1), SEEK_SET); //move the file pointer
+    write(fd, ptr, sizeof(record_t));
 
-    record_t record = {0};
-    if (writing) {
-        unsigned long registration, mark;
-        if (parse_uint(argv[4], 100000, 999999, &registration) < 0 ||
-            parse_uint(argv[7], 0, 30, &mark) < 0 ||
-            strlen(argv[5]) >= RECORD_NAME_BYTES ||
-            strlen(argv[6]) >= RECORD_NAME_BYTES) return usage(argv[0]);
-        record.id = (uint32_t)index;
-        record.registration = (uint32_t)registration;
-        record.mark = (uint32_t)mark;
-        strcpy(record.surname, argv[5]);
-        strcpy(record.name, argv[6]);
-        if (!valid_record(&record)) return usage(argv[0]);
+    close(fd);
+}
+
+record_t* search_student(char* filename, int student_num){
+    record_t* ptr = (record_t*)malloc(1*sizeof(record_t));
+    int fd = open(filename, O_RDONLY);
+    if(fd==-1){
+        fprintf(stderr, "Error opening file\n");
+        exit(EXIT_FAILURE);
     }
-    int fd = open(argv[2], writing ? O_RDWR : O_RDONLY);
-    if (fd < 0) {
-        perror(argv[2]);
-        return EXIT_FAILURE;
-    }
-    struct stat info;
-    if (fstat(fd, &info) < 0) {
-        perror("fstat");
-        close(fd);
-        return EXIT_FAILURE;
-    }
-    if (!S_ISREG(info.st_mode) || info.st_size % RECORD_BYTES != 0 ||
-        (off_t)index > info.st_size / RECORD_BYTES + (writing ? 1 : 0)) {
-        fprintf(stderr, "Invalid file size or record index; writes may append one record\n");
-        close(fd);
-        return EXIT_FAILURE;
-    }
-    if (lseek(fd, (off_t)(index - 1) * RECORD_BYTES, SEEK_SET) < 0) {
-        perror("lseek");
-        close(fd);
-        return EXIT_FAILURE;
-    }
-    int result = EXIT_SUCCESS;
-    if (writing) {
-        if (write_record(fd, &record) < 0) {
-            perror("write record");
-            result = EXIT_FAILURE;
-        }
-    } else {
-        if (read_record(fd, &record) != 1 || record.id != index) {
-            fprintf(stderr, "Invalid or missing record\n");
-            result = EXIT_FAILURE;
-        } else if (print_record(stdout, &record) < 0) {
-            result = EXIT_FAILURE;
-        }
-    }
-    if (close(fd) != 0) result = EXIT_FAILURE;
-    return result;
+    lseek(fd, sizeof(record_t)*(student_num-1), SEEK_SET); //move the file pointer
+    read(fd, ptr, sizeof(record_t));
+
+    
+    close(fd);
+    return ptr;
 }

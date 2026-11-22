@@ -1,17 +1,11 @@
 # Template stack and queue
 
-Implement LIFO and FIFO wrappers over STL containers, including move-only element ownership.
+Demonstrates the original lifoStack and fifo_queue templates backed by vector and list, with the original sample values.
 
-Concepts: Templates; vector and list; move semantics; const-correct queries; exceptions for invalid operations.
+Build with make from the repository root, then run:
 
-Build from the repository root with make, then run:
-
-~~~sh
+```sh
 build/template-containers
-~~~
+```
 
-Stack prints third, second, first; queue prints 1, 2, 3. Empty removal throws std::out_of_range. These containers are sequential and do not synchronize concurrent access.
-
-Changes from the coursework draft: Added defined empty-removal behavior, size_t sizes, const queries, move-only support, and behavioral checks.
-
-Validation: make check includes behavioral checks for this exercise. Original source mapping is in docs/provenance.md.
+Source code is unchanged from the original study folder.

@@ -1,25 +1,37 @@
-#ifndef SYSTEMS_EXERCISES_QUEUE_H
-#define SYSTEMS_EXERCISES_QUEUE_H
-
-#include <cstddef>
+#ifndef QUEUE_H
+#define QUEUE_H
+#include <iostream>
 #include <list>
-#include <stdexcept>
-#include <utility>
 
-template <typename T>
-class Queue {
-public:
-    void enqueue(T value) { values_.push_back(std::move(value)); }
-    T dequeue() {
-        if (empty()) throw std::out_of_range("dequeue from empty queue");
-        T value = std::move(values_.front());
-        values_.pop_front();
-        return value;
-    }
-    std::size_t size() const noexcept { return values_.size(); }
-    bool empty() const noexcept { return values_.empty(); }
-private:
-    std::list<T> values_;
+using namespace std;
+using std::list;
+
+template <class T>
+class fifo_queue{
+    list<T> myList;
+    public:
+        void enqueue(T elem){
+            myList.push_back(elem);
+        }
+
+        T dequeue(){
+            T tmp = myList.front();
+            myList.pop_front();
+            return tmp;
+        }
+
+        void visit(){
+            cout << "Printing FIFO list:" << endl;
+            for(T elem : myList)
+                cout << elem << endl;
+        }
+
+        int getSize(){
+            return myList.size();
+        }
+
+        bool empty(){
+            return myList.empty();
+        }
 };
-
 #endif

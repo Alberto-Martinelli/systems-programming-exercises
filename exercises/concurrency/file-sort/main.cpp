@@ -1,114 +1,149 @@
-#include "joining_thread.hpp"
-#include <algorithm>
-#include <bit>
-#include <cstdint>
-#include <exception>
-#include <filesystem>
-#include <fstream>
 #include <iostream>
-#include <limits>
-#include <queue>
-#include <stdexcept>
 #include <string>
 #include <thread>
-#include <tuple>
+#include <fstream>
+#include <memory>
+#include <sstream>
 #include <vector>
 
-namespace {
-constexpr std::uint32_t max_values_per_file = 1000000;
+using namespace std;
 
-std::uint32_t read_u32(std::istream& input) {
-    unsigned char bytes[4];
-    if (!input.read(reinterpret_cast<char*>(bytes), sizeof bytes))
-        throw std::runtime_error("truncated binary integer");
-    return static_cast<std::uint32_t>(bytes[0]) |
-           (static_cast<std::uint32_t>(bytes[1]) << 8) |
-           (static_cast<std::uint32_t>(bytes[2]) << 16) |
-           (static_cast<std::uint32_t>(bytes[3]) << 24);
-}
+void write_file(string filename, string text);
+void read_file(string filename); // for debug purposes
+int* thread_read_file(string filename, int* &arr, int &length);
+void write_output(string filename, vector<int> arr);
 
-void write_u32(std::ostream& output, std::uint32_t value) {
-    unsigned char bytes[4];
-    for (unsigned int i = 0; i < 4; ++i)
-        bytes[i] = static_cast<unsigned char>(value >> (8 * i));
-    if (!output.write(reinterpret_cast<const char*>(bytes), sizeof bytes))
-        throw std::runtime_error("binary output write failed");
-}
+int main(void){
+    int n = 3;
 
-std::vector<std::int32_t> read_and_sort(const std::string& path) {
-    const auto bytes = std::filesystem::file_size(path);
-    std::ifstream input(path, std::ios::binary);
-    if (!input) throw std::runtime_error("cannot open input: " + path);
-    const auto count = read_u32(input);
-    if (count > max_values_per_file || bytes != 4ULL + 4ULL * count)
-        throw std::runtime_error("invalid count or file length: " + path);
-    std::vector<std::int32_t> values(count);
-    for (auto& value : values) value = std::bit_cast<std::int32_t>(read_u32(input));
-    std::sort(values.begin(), values.end());
-    return values;
-}
+    string *input_files = new string[n];
+    input_files[0] = "input1.bin";
+    input_files[1] = "input2.bin";
+    input_files[2] = "input3.bin";
+    string output_filename = "output.bin";
 
-std::vector<std::int32_t> merge_runs(
-    const std::vector<std::vector<std::int32_t>>& runs) {
-    using Entry = std::tuple<std::int32_t, std::size_t, std::size_t>;
-    std::priority_queue<Entry, std::vector<Entry>, std::greater<Entry>> heap;
-    std::size_t total = 0;
-    for (std::size_t i = 0; i < runs.size(); ++i) {
-        total += runs[i].size();
-        if (!runs[i].empty()) heap.emplace(runs[i][0], i, 0);
+    // write_file(input_filename1, "5 23 45 67 9 23");
+    // write_file(input_filename2, "12 90 65 34 24 12 0 89 29 54 12 78 3");
+    // write_file(input_filename3, "3 9 5 1");
+
+    int **collector = new int*[n]; // collects the pointer to array of each thread
+    int *lengths = new int[n]; // lengths of the array of each thread
+    thread *my_threads = new thread[n]; // dynamic array of threads
+    
+    // start the threads
+    int i, j;
+    for(i=0; i<n; i++){
+        my_threads[i] = thread(thread_read_file, input_files[i], ref(collector[i]), ref(lengths[i]));
     }
-    if (total > std::numeric_limits<std::uint32_t>::max())
-        throw std::runtime_error("output count exceeds binary format");
-    std::vector<std::int32_t> merged;
-    merged.reserve(total);
-    while (!heap.empty()) {
-        auto [value, run, position] = heap.top();
-        heap.pop();
-        merged.push_back(value);
-        if (++position < runs[run].size())
-            heap.emplace(runs[run][position], run, position);
-    }
-    return merged;
-}
-} // namespace
 
-int main(int argc, char** argv) {
-    if (argc < 3 || argc > 34) {
-        std::cerr << "Usage: " << argv[0] << " INPUT... OUTPUT; at most 32 inputs\n";
-        return 1;
+    // wait for the termination of each thread
+    for(i=0; i<n; i++){
+        my_threads[i].join();  
     }
-    try {
-        const auto count = static_cast<std::size_t>(argc - 2);
-        std::vector<std::vector<std::int32_t>> runs(count);
-        std::vector<std::exception_ptr> errors(count);
-        {
-            std::vector<JoiningThread> workers;
-            workers.reserve(count);
-            for (std::size_t i = 0; i < count; ++i) {
-                workers.emplace_back([&, i] {
-                    try {
-                        runs[i] = read_and_sort(argv[i + 1]);
-                    } catch (...) {
-                        errors[i] = std::current_exception();
-                    }
-                });
-            }
-            // Scope-bound joins also run if constructing a later worker throws.
+
+    // merge the n arrays into one sequence of integers (I chose a vector data structure)
+    vector<int> final_arr;
+    for(i=0; i<n; i++){
+        for(j=0; j<lengths[i]; j++){
+            final_arr.push_back(collector[i][j]);
         }
-        for (const auto& error : errors) {
-            if (error) std::rethrow_exception(error);
-        }
-        const auto merged = merge_runs(runs);
-        std::ofstream output(argv[argc - 1], std::ios::binary | std::ios::trunc);
-        if (!output) throw std::runtime_error("cannot open output");
-        write_u32(output, static_cast<std::uint32_t>(merged.size()));
-        for (auto value : merged)
-            write_u32(output, std::bit_cast<std::uint32_t>(value));
-        output.close();
-        if (!output) throw std::runtime_error("cannot close output");
-        std::cout << "Sorted " << merged.size() << " values from " << count << " files\n";
-    } catch (const std::exception& error) {
-        std::cerr << error.what() << '\n';
-        return 1;
     }
+    
+    write_output(output_filename, final_arr); // writes the final array in output.bin
+    read_file(output_filename); // reads output.bin and prints it on stdout
+
+    // deallocate memory
+    delete[] input_files;
+    for(i=0; i<n; i++){
+        delete[] collector[i];
+    }
+    delete[] collector;
+    delete[] lengths;
+    delete[] my_threads;
+    return 0;
+}
+
+void read_file(string filename){
+    ifstream my_file(filename, ifstream::in | ifstream::binary);
+    if(!my_file.is_open()){
+        cerr << "Error opening file " << filename << endl;
+        exit(EXIT_FAILURE);
+    }
+    
+    int val;
+    cout << "Content of the file '" << filename << "':" << endl;
+    while(my_file.read((char*)&val, sizeof(int))){
+        cout << val << " ";
+    }
+    
+    cout << "\n";
+
+    my_file.close();
+}
+
+void write_file(string filename, string text){
+    ofstream my_file(filename, ofstream::out | ofstream::binary);
+    if(!my_file.is_open()){
+        cerr << "Error opening file " << filename << endl;
+        exit(EXIT_FAILURE);
+    }
+    int size;
+    istringstream iss(text);
+    iss >> size; // reads the first integer of the string
+    my_file.write((char *)&size, sizeof(int)); // writes it on the file
+
+    int i, val;
+    for(i=0; i<size; i++){
+        iss >> val; // read int from the string
+        // cout << val << " "; // debug
+        my_file.write((char *)&val, sizeof(int));
+    }
+    
+    // cout << "\n";
+
+    my_file.close();
+}
+
+int* thread_read_file(string filename, int* &arr, int &length){
+    // thread opens its input file
+    ifstream my_file;
+    my_file.open(filename, ifstream::in | ifstream::binary); // opens the file in binary mode
+    if(!my_file.is_open()){
+        cerr << "Error opening file " << filename << endl;
+        exit(EXIT_FAILURE);
+    }
+    // reads the first integer value
+    my_file.read((char *)&length, sizeof(int)); // reads the first integer (which is the # of integers to read next)
+    arr = new int[length]; // arr is a pointer to a dynamic array of num integers (stored in the heap) (in case of error it throws an exception)
+
+    int i;
+    for(i=0; i<length; i++){
+        // read into array the integers in the binary file
+        my_file.read((char *)&(arr[i]), sizeof(int));
+    }
+
+    sort(arr, arr+length); // sort the array in ascending order
+
+    my_file.close();
+
+    return arr;
+}
+
+void write_output(string filename, vector<int> arr){
+    ofstream my_file(filename, ofstream::out | ofstream::binary);
+    if(!my_file.is_open()){
+        cerr << "Error opening file " << filename << endl;
+        exit(EXIT_FAILURE);
+    }
+    
+    sort(arr.begin(), arr.end());
+
+    int lenght = arr.size();
+    my_file.write((char*)&lenght, sizeof(int));
+
+    for(auto el : arr){
+        my_file.write((char*)&el, sizeof(int));
+    }
+
+    my_file.close();
 }

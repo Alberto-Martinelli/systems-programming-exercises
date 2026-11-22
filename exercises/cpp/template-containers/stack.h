@@ -1,25 +1,38 @@
-#ifndef SYSTEMS_EXERCISES_STACK_H
-#define SYSTEMS_EXERCISES_STACK_H
-
-#include <cstddef>
-#include <stdexcept>
-#include <utility>
+#ifndef STACK_H
+#define STACK_H
+#include <iostream>
 #include <vector>
 
-template <typename T>
-class Stack {
-public:
-    void push(T value) { values_.push_back(std::move(value)); }
-    T pop() {
-        if (empty()) throw std::out_of_range("pop from empty stack");
-        T value = std::move(values_.back());
-        values_.pop_back();
-        return value;
-    }
-    std::size_t size() const noexcept { return values_.size(); }
-    bool empty() const noexcept { return values_.empty(); }
-private:
-    std::vector<T> values_;
+using std::vector;
+template <class T>
+class lifoStack{
+    vector<T> vec;
+    public:
+        void push(const T elem){
+            vec.push_back(elem);
+        }
+
+        T pop(){
+            T tmp = vec.back();
+            vec.pop_back();
+            return tmp;
+        }
+
+        void visit(){
+            std::cout << "LIFO Stack:\n";
+            int i;
+            for(i=vec.size()-1; i>=0; i--){
+                std::cout << vec[i] << "\n";
+            }
+        }
+
+        int getSize(){
+            return vec.size();
+        }
+
+        int empty(){
+            return vec.size()==0? true : false;
+        }
 };
 
 #endif

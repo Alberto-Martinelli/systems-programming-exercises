@@ -7,3 +7,5 @@ build/
 .idea/
 .vscode/
 __pycache__/
+exercises/io/record-converter/data_3.txt
+exercises/concurrency/file-sort/output.bin

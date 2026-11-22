@@ -1,17 +1,11 @@
 # Matrix multiplication with pthreads
 
-Create one worker per output cell of a matrix product, then join all workers before printing.
+Computes the product of the hardcoded matrices using one pthread per output cell. Dimensions and data are set in main.c.
 
-Concepts: Shared read-only matrices; exclusive ownership of output cells; argument lifetime; heap allocation and cleanup.
+Build with make from the repository root, then run:
 
-Build from the repository root with make, then run:
+```sh
+build/pthread-matrix
+```
 
-~~~sh
-build/pthread-matrix 2 2 3
-~~~
-
-A and B contain consecutive positive integers in row-major order. The sample prints rows "9 12 15" and "19 26 33". Dimensions are bounded to 1..32 and output cells to 128. This intentionally demonstrates decomposition, without claiming that a thread per cell is efficient.
-
-Changes from the coursework draft: Added configurable dimensions, contiguous matrix allocations, complete cleanup, deterministic data, and cleanup after partial thread creation.
-
-Validation: make check includes behavioral checks for this exercise. Original source mapping is in docs/provenance.md.
+Source code is unchanged from the original study folder.

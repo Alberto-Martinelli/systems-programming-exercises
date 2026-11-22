@@ -1,17 +1,11 @@
-# Streaming between parent and child through a pipe
+# Parent/child pipe communication
 
-A child copies standard input into a pipe; its parent drains the pipe to standard output.
+A child reads strings interactively and writes them to a pipe; its parent prints what it reads. Both loops run indefinitely and preserve the original EOF behavior.
 
-Concepts: fork; descriptor ownership; EOF; short I/O; EINTR; waitpid; byte-stream semantics.
+Build with make from the repository root, then run:
 
-Build from the repository root with make, then run:
+```sh
+build/pipe-echo
+```
 
-~~~sh
-printf "hello\nworld\n" | build/pipe-echo
-~~~
-
-The transport preserves arbitrary bytes, including NUL and streams larger than the pipe buffer. Unused pipe ends are closed so EOF propagates. This is a byte stream, with no assumptions about message boundaries.
-
-Changes from the coursework draft: Replaced unbounded scanf and string-based pipe reads with streaming byte buffers, complete writes, EOF termination, and child reaping.
-
-Validation: make check includes behavioral checks for this exercise. Original source mapping is in docs/provenance.md.
+Source code is unchanged from the original study folder.

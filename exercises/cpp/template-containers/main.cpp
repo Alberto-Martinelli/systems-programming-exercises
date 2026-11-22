@@ -1,18 +1,38 @@
-#include "queue.h"
 #include "stack.h"
-#include <iostream>
+#include "queue.h"
 #include <string>
 
-int main() {
-    Stack<std::string> stack;
-    for (const auto* word : {"first", "second", "third"}) stack.push(word);
-    std::cout << "stack:";
-    while (!stack.empty()) std::cout << ' ' << stack.pop();
-    std::cout << '\n';
+using namespace std;
+using std::vector;
 
-    Queue<int> queue;
-    for (int value : {1, 2, 3}) queue.enqueue(value);
-    std::cout << "queue:";
-    while (!queue.empty()) std::cout << ' ' << queue.dequeue();
-    std::cout << '\n';
+int main(int argc, char** argv){
+    //TESTING STACK
+    lifoStack<string> my_stack;
+    my_stack.push("ciao");
+    my_stack.push("io sono");
+    my_stack.push("Alberto");
+    my_stack.visit();
+    my_stack.pop();
+    my_stack.visit();
+    
+    std::cout << "\nSize: " <<my_stack.getSize();
+
+    cout << "\nIs the stack empty? ";
+    if(my_stack.empty()==1)
+        cout << "Yes";
+    else
+        cout << "No";
+    
+    //TESTING QUEUE
+    fifo_queue<int> my_queue;
+    my_queue.enqueue(1);
+    my_queue.enqueue(29);
+    my_queue.enqueue(83);
+    my_queue.visit();
+    my_queue.dequeue();
+    my_queue.visit();
+    cout << "\nSize: " << my_queue.getSize();
+    cout << "\nIs the queue empty?" << my_queue.empty();
+
+    return 0;
 }
